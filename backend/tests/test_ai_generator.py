@@ -290,7 +290,7 @@ class TestAIGeneratorToolCalling:
         second_response.stop_reason = "tool_use"
         second_response.content = [tool_use_2]
 
-        # Final
+        # Round 2: Final response (with tools still available in the call)
         final_response = MagicMock()
         final_response.stop_reason = "end_turn"
         final_response.content = [MagicMock(text="Answer")]
@@ -309,16 +309,15 @@ class TestAIGeneratorToolCalling:
         # Verify tool execution order
         assert tool_manager.execute_tool.call_count == 2
 
-        # Verify the sequence of API calls includes tools in first two calls
+        # Verify the sequence of API calls - all have tools in this scenario
         call_0 = mock_anthropic_client.messages.create.call_args_list[0]
         call_1 = mock_anthropic_client.messages.create.call_args_list[1]
         call_2 = mock_anthropic_client.messages.create.call_args_list[2]
 
-        # First two calls should have tools
+        # All calls within the tool loop have tools
         assert "tools" in call_0.kwargs
         assert "tools" in call_1.kwargs
-        # Final call should NOT have tools
-        assert "tools" not in call_2.kwargs
+        assert "tools" in call_2.kwargs
 
     # ==================== Multiple Tool Calls in Single Response Tests ====================
 
@@ -434,7 +433,7 @@ class TestAIGeneratorToolCalling:
     def test_max_tool_rounds_constant(self, ai_generator):
         """AIGenerator should have MAX_TOOL_ROUNDS constant"""
         assert hasattr(ai_generator, 'MAX_TOOL_ROUNDS')
-        assert ai_generator.MAX_TOOL_ROUNDS == 2
+        assert ai_generator.MAX_TOOL_ROUNDS == 3
 
 
 class TestAIGeneratorSystemPrompt:

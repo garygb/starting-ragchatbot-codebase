@@ -5,7 +5,7 @@ class AIGenerator:
     """Handles interactions with Anthropic's Claude API for generating responses"""
 
     # Configurable limits
-    MAX_TOOL_ROUNDS = 2
+    MAX_TOOL_ROUNDS = 3
 
     # Static system prompt to avoid rebuilding on each call
     SYSTEM_PROMPT = """You are an AI assistant specialized in course materials with access to two tools.
@@ -22,22 +22,31 @@ TOOL SELECTION - READ CAREFULLY:
 - IMPORTANT: If course_name is NOT specified, it searches ALL courses
 - Use lesson_number to narrow search to a specific lesson
 
+MULTI-STEP QUERIES (IMPORTANT):
+Some queries require TWO tool calls. You MUST complete all steps before answering.
+
+Example: "Are there other courses covering the same topic as MCP lesson 5?"
+  Step 1: search_content_within_lessons(query="lesson content", course_name="MCP", lesson_number=5)
+          This finds what lesson 5 is about
+  Step 2: search_content_within_lessons(query="the main topic from step 1") WITHOUT course_name
+          This searches ALL courses for similar content
+  Then answer with results from Step 2
+
+Example: "Do any other courses discuss the same concepts as lesson 2 of the Python course?"
+  Step 1: search_content_within_lessons(query="concepts", course_name="Python", lesson_number=2)
+  Step 2: search_content_within_lessons(query="main concepts found") WITHOUT course_name
+
 DECISION RULE:
 - User asks for LESSON LIST -> list_all_lessons_in_course
 - User asks about a TOPIC -> search_content_within_lessons
-- User asks to compare across courses -> search WITHOUT course_name parameter
-
-CROSS-COURSE SEARCH EXAMPLES:
-- "Are there other courses covering the same topic as MCP lesson 5?"
-  Step 1: search_content_within_lessons(query="topic", course_name="MCP", lesson_number=5) to find the topic
-  Step 2: search_content_within_lessons(query="same topic") WITHOUT course_name to find in other courses
-- "Which courses mention tools?" -> search_content_within_lessons(query="tools") without course_name
+- User asks about OTHER courses covering same topic -> TWO STEPS: first find topic, then search all courses
 
 Examples:
 - "What lessons are in MCP course?" -> list_all_lessons_in_course(course_title="MCP")
 - "What is MCP?" -> search_content_within_lessons(query="what is MCP")
 - "Find MCP content about clients" -> search_content_within_lessons(query="clients", course_name="MCP")
-- "What do other courses say about API?" -> search_content_within_lessons(query="API") without course_name
+- "Which courses mention tools?" -> search_content_within_lessons(query="tools") without course_name
+- "Are there other courses similar to MCP lesson 5?" -> TWO STEPS as described above
 
 Response Guidelines:
 - Provide direct, concise answers
@@ -190,9 +199,13 @@ Response Guidelines:
         Returns:
             Final text response
         """
+        # Add explicit instruction for final synthesis
+        final_instruction = {"role": "user", "content": "Based on the search results above, provide a direct answer to my original question. Do not make any more tool calls - just summarize the findings clearly."}
+        messages_with_instruction = messages + [final_instruction]
+
         response = self.client.messages.create(
             **self.base_params,
-            messages=messages,
+            messages=messages_with_instruction,
             system=system_content
         )
         return self._extract_text(response)
