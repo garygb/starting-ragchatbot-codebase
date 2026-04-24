@@ -30,6 +30,9 @@ function setupEventListeners() {
     });
     
     
+    // New chat button
+    document.querySelector('.new-chat-btn').addEventListener('click', startNewChat);
+
     // Suggested questions
     document.querySelectorAll('.suggested-item').forEach(button => {
         button.addEventListener('click', (e) => {
@@ -124,8 +127,32 @@ function addMessage(content, type, sources = null, isWelcome = false) {
     if (sources && sources.length > 0) {
         html += `
             <details class="sources-collapsible">
-                <summary class="sources-header">Sources</summary>
-                <div class="sources-content">${sources.join(', ')}</div>
+                <summary class="sources-header">
+                    <svg class="sources-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M13 2.5H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1Z"/>
+                        <path d="M5 5h6M5 7.5h6M5 10h3"/>
+                    </svg>
+                    ${sources.length} Source${sources.length > 1 ? 's' : ''}
+                </summary>
+                <div class="sources-content">${sources.map(s => {
+                    if (s.url) {
+                        return `<a href="${s.url}" target="_blank" rel="noopener noreferrer" class="source-link">
+                            <svg class="source-link-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M6 3H3.5A1.5 1.5 0 0 0 2 4.5v8A1.5 1.5 0 0 0 3.5 14h8a1.5 1.5 0 0 0 1.5-1.5V10"/>
+                                <path d="M10 2h4v4"/>
+                                <path d="M7 9 14 2"/>
+                            </svg>
+                            ${escapeHtml(s.title)}
+                        </a>`;
+                    }
+                    return `<span class="source-text">
+                        <svg class="source-text-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M13 2.5H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1Z"/>
+                            <path d="M5 5h6M5 7.5h6M5 10h3"/>
+                        </svg>
+                        ${escapeHtml(s.title)}
+                    </span>`;
+                }).join('')}</div>
             </details>
         `;
     }
@@ -150,6 +177,23 @@ async function createNewSession() {
     currentSessionId = null;
     chatMessages.innerHTML = '';
     addMessage('Welcome to the Course Materials Assistant! I can help you with questions about courses, lessons and specific content. What would you like to know?', 'assistant', null, true);
+}
+
+async function startNewChat() {
+    const oldSessionId = currentSessionId;
+    createNewSession();
+    if (oldSessionId) {
+        try {
+            await fetch(`${API_URL}/session/clear`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: oldSessionId })
+            });
+        } catch (e) {
+            // Non-critical — session will be garbage collected eventually
+        }
+    }
+    chatInput.focus();
 }
 
 // Load course statistics
