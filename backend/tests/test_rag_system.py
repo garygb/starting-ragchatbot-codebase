@@ -78,8 +78,10 @@ class TestRAGSystemQuery:
 
         call_args = mock_ai_generator.generate_response.call_args
         assert call_args.kwargs["tools"] is not None
-        assert len(call_args.kwargs["tools"]) == 1
-        assert call_args.kwargs["tools"][0]["name"] == "search_course_content"
+        assert len(call_args.kwargs["tools"]) == 2
+        tool_names = [t["name"] for t in call_args.kwargs["tools"]]
+        assert "search_content_within_lessons" in tool_names
+        assert "list_all_lessons_in_course" in tool_names
 
     def test_query_passes_tool_manager(self, rag_system, mock_ai_generator):
         """RAGSystem should pass tool_manager to enable tool execution"""
@@ -143,11 +145,14 @@ class TestRAGSystemQuery:
         # This test verifies the integration between ToolManager and CourseSearchTool
         assert hasattr(rag_system, 'tool_manager')
         assert hasattr(rag_system, 'search_tool')
+        assert hasattr(rag_system, 'outline_tool')
 
-        # Verify tool is registered
+        # Verify both tools are registered
         tool_defs = rag_system.tool_manager.get_tool_definitions()
-        assert len(tool_defs) == 1
-        assert tool_defs[0]["name"] == "search_course_content"
+        assert len(tool_defs) == 2
+        tool_names = [t["name"] for t in tool_defs]
+        assert "search_content_within_lessons" in tool_names
+        assert "list_all_lessons_in_course" in tool_names
 
     def test_search_tool_has_vector_store(self, rag_system):
         """CourseSearchTool should have access to VectorStore"""
@@ -208,7 +213,7 @@ class TestRAGSystemToolIntegration:
         rag_system.search_tool.store.get_lesson_link.return_value = "https://example.com/lesson/1"
 
         result = rag_system.tool_manager.execute_tool(
-            "search_course_content",
+            "search_content_within_lessons",
             query="What is MCP?"
         )
 
@@ -226,7 +231,7 @@ class TestRAGSystemToolIntegration:
         rag_system.search_tool.store.get_lesson_link.return_value = "https://example.com/lesson"
 
         rag_system.tool_manager.execute_tool(
-            "search_course_content",
+            "search_content_within_lessons",
             query="test"
         )
 
@@ -353,7 +358,7 @@ class TestRAGSystemEndToEnd:
         # Setup mock responses
         tool_use_content = MagicMock()
         tool_use_content.type = "tool_use"
-        tool_use_content.name = "search_course_content"
+        tool_use_content.name = "search_content_within_lessons"
         tool_use_content.id = "tool_1"
         tool_use_content.input = {"query": "What is MCP?"}
 

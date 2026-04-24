@@ -30,7 +30,7 @@ class TestCourseSearchToolExecute:
         definition = search_tool.get_tool_definition()
 
         assert "name" in definition
-        assert definition["name"] == "search_course_content"
+        assert definition["name"] == "search_content_within_lessons"
         assert "description" in definition
         assert "input_schema" in definition
         assert definition["input_schema"]["type"] == "object"

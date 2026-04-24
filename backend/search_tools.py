@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional, Protocol
+from typing import Dict, Any, Optional, Protocol, List
 from abc import ABC, abstractmethod
 from vector_store import VectorStore, SearchResults
 
@@ -27,14 +27,14 @@ class CourseSearchTool(Tool):
     def get_tool_definition(self) -> Dict[str, Any]:
         """Return Anthropic tool definition for this tool"""
         return {
-            "name": "search_course_content",
-            "description": "Search course materials with smart course name matching and lesson filtering",
+            "name": "search_content_within_lessons",
+            "description": "Search for specific information or concepts within course lessons. Use when user asks about a TOPIC (e.g., 'what is X', 'explain Y', 'how to do Z'). DO NOT use when user wants to see all lessons.",
             "input_schema": {
                 "type": "object",
                 "properties": {
                     "query": {
-                        "type": "string", 
-                        "description": "What to search for in the course content"
+                        "type": "string",
+                        "description": "The topic or concept to search for (e.g., 'what is MCP', 'how to use tools')"
                     },
                     "course_name": {
                         "type": "string",
@@ -115,6 +115,82 @@ class CourseSearchTool(Tool):
         self.last_sources = sources
         
         return "\n\n".join(formatted)
+
+
+class CourseOutlineTool(Tool):
+    """Tool for retrieving course outline with lesson list"""
+
+    def __init__(self, vector_store: VectorStore):
+        self.store = vector_store
+        self.last_sources = []  # Track sources for the UI
+
+    def get_tool_definition(self) -> Dict[str, Any]:
+        """Return Anthropic tool definition for this tool"""
+        return {
+            "name": "list_all_lessons_in_course",
+            "description": "Get a numbered list of ALL LESSONS in a course. MUST use this tool when user asks: 'what lessons', 'list lessons', 'show syllabus', 'course structure', 'how many lessons'. Returns course title, link, and numbered lesson list.",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "course_title": {
+                        "type": "string",
+                        "description": "Course title or partial name (e.g., 'MCP', 'Introduction to Python')"
+                    }
+                },
+                "required": ["course_title"]
+            }
+        }
+
+    def execute(self, course_title: str) -> str:
+        """
+        Retrieve and format course outline.
+
+        Args:
+            course_title: Course title or partial name (fuzzy matched)
+
+        Returns:
+            Formatted course outline with title, link, and lesson list
+        """
+        outline = self.store.get_course_outline(course_title)
+
+        if not outline:
+            return f"No course found matching '{course_title}'."
+
+        return self._format_outline(outline)
+
+    def _format_outline(self, outline: Dict[str, Any]) -> str:
+        """Format course outline as markdown-style text"""
+        lines = []
+
+        title = outline.get('title', 'Unknown Course')
+        course_link = outline.get('course_link')
+        instructor = outline.get('instructor')
+
+        lines.append(f"## {title}")
+
+        if instructor:
+            lines.append(f"**Instructor:** {instructor}")
+
+        # Track source for UI
+        self.last_sources = [{"title": title, "url": course_link}]
+
+        if course_link:
+            lines.append(f"**Course Link:** {course_link}")
+
+        lessons = outline.get('lessons', [])
+        lesson_count = outline.get('lesson_count', len(lessons))
+
+        if lessons:
+            lines.append(f"\n**Lessons ({lesson_count} total):**")
+            for lesson in lessons:
+                lesson_num = lesson.get('lesson_number', '?')
+                lesson_title = lesson.get('lesson_title', 'Untitled')
+                lines.append(f"  {lesson_num}. {lesson_title}")
+        else:
+            lines.append("\nNo lessons found for this course.")
+
+        return "\n".join(lines)
+
 
 class ToolManager:
     """Manages available tools for the AI"""
