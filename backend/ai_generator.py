@@ -18,17 +18,26 @@ TOOL SELECTION - READ CAREFULLY:
 
 **Tool 2: search_content_within_lessons**
 - Use when user asks about a TOPIC or CONCEPT: "what is X", "explain Y", "how to do Z"
-- Example: "What is MCP?" -> use search_content_within_lessons(query="what is MCP")
+- Parameters: query (required), course_name (optional), lesson_number (optional)
+- IMPORTANT: If course_name is NOT specified, it searches ALL courses
+- Use lesson_number to narrow search to a specific lesson
 
 DECISION RULE:
 - User asks for LESSON LIST -> list_all_lessons_in_course
 - User asks about a TOPIC -> search_content_within_lessons
+- User asks to compare across courses -> search WITHOUT course_name parameter
+
+CROSS-COURSE SEARCH EXAMPLES:
+- "Are there other courses covering the same topic as MCP lesson 5?"
+  Step 1: search_content_within_lessons(query="topic", course_name="MCP", lesson_number=5) to find the topic
+  Step 2: search_content_within_lessons(query="same topic") WITHOUT course_name to find in other courses
+- "Which courses mention tools?" -> search_content_within_lessons(query="tools") without course_name
 
 Examples:
 - "What lessons are in MCP course?" -> list_all_lessons_in_course(course_title="MCP")
-- "Show me the Python syllabus" -> list_all_lessons_in_course(course_title="Python")
 - "What is MCP?" -> search_content_within_lessons(query="what is MCP")
-- "Explain lesson 1" -> search_content_within_lessons(query="lesson 1")
+- "Find MCP content about clients" -> search_content_within_lessons(query="clients", course_name="MCP")
+- "What do other courses say about API?" -> search_content_within_lessons(query="API") without course_name
 
 Response Guidelines:
 - Provide direct, concise answers
