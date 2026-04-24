@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户请求流程图</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 2rem;
+            background: #0f172a;
+            color: #f1f5f9;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>用户请求流程图 — 从前端到后端</h1>
+    <div class="mermaid">
+sequenceDiagram
+    participant U as 用户
+    participant FE as 前端 (script.js)
+    participant API as FastAPI (app.py)
+    participant RAG as RAG系统 (rag_system.py)
+    participant AI as AI生成器 (ai_generator.py)
+    participant LLM as LLM API
+    participant Tool as 搜索工具 (search_tools.py)
+    participant VS as 向量存储 (vector_store.py)
+    participant DB as ChromaDB
+
+    U->>FE: 输入 "What is MCP?"
+    FE->>FE: 清空输入框，显示loading
+    FE->>API: POST /api/query<br/>{query, session_id}
+
+    API->>API: 解析请求 (QueryRequest)
+    API->>RAG: rag_system.query(query, session_id)
+
+    RAG->>RAG: 构造提示词
+    RAG->>RAG: 获取对话历史
+    RAG->>AI: generate_response(query, history, tools)
+
+    rect rgb(30, 41, 59)
+        Note over AI,LLM: 第1次 API 调用 — 决定是否搜索
+        AI->>LLM: Messages API (带tools)
+        LLM-->>AI: stop_reason: tool_use<br/>调用 search_course_content
+    end
+
+    AI->>Tool: execute("search_course_content", query="MCP")
+    Tool->>VS: search(query="MCP")
+    VS->>DB: course_content 语义检索 (top 5)
+    DB-->>VS: 5个文本块 + 元数据
+    VS-->>Tool: SearchResults
+    Tool->>VS: get_lesson_link() / get_course_link()
+    VS-->>Tool: 课程视频 URL
+    Tool->>Tool: _format_results() 存入 last_sources
+    Tool-->>AI: 格式化的搜索结果文本
+
+    rect rgb(30, 58, 95)
+        Note over AI,LLM: 第2次 API 调用 — 综合回答
+        AI->>LLM: Messages API (不带tools)<br/>携带搜索结果
+        LLM-->>AI: 最终回答文本
+    end
+
+    AI-->>RAG: response 文本
+    RAG->>RAG: 获取 sources (带链接)
+    RAG->>RAG: 记录对话历史
+    RAG-->>API: (answer, sources)
+
+    API-->>FE: {answer, sources, session_id}
+
+    FE->>FE: marked.parse() 渲染Markdown
+    FE->>FE: 渲染Sources为可点击链接
+    FE-->>U: 显示回答 + 来源链接
+    </div>
+
+    <script>
+        mermaid.initialize({
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: '#2563eb',
+                primaryTextColor: '#f1f5f9',
+                primaryBorderColor: '#334155',
+                lineColor: '#94a3b8',
+                secondaryColor: '#1e293b',
+                tertiaryColor: '#0f172a',
+                noteBkgColor: '#1e3a5f',
+                noteTextColor: '#f1f5f9',
+                noteBorderColor: '#2563eb'
+            },
+            sequence: {
+                actorMargin: 80,
+                messageMargin: 40,
+                mirrorActors: false,
+                useMaxWidth: true
+            }
+        });
+    </script>
+</body>
+</html>

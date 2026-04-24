@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_navigate",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/api/query -H \"Content-Type: application/json\" -d '{\"query\":\"What is MCP?\"}')",
+      "Bash(uv run *)",
+      "Bash(uv sync *)",
+      "Bash(.venv/Scripts/python -m pytest backend/tests/ -v)",
+      "Bash(uv add *)",
+      "Bash(git add *)",
+      "Bash(curl *)",
+      "Read(//c/Users/58304/.cache/torch/**)",
+      "Read(//c/Users/58304/.cache/huggingface/hub/**)",
+      "Bash(powershell -Command \"Stop-Process -Id 51160,38400 -Force -ErrorAction SilentlyContinue\")",
+      "Bash(netstat -ano)",
+      "Bash(findstr :8000)",
+      "Bash(HF_HUB_OFFLINE=1 uv run uvicorn app:app --port 8001)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}
