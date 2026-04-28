@@ -19,7 +19,8 @@
       "Bash(netstat -ano)",
       "Bash(findstr :8000)",
       "Bash(HF_HUB_OFFLINE=1 uv run uvicorn app:app --port 8001)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(powershell *)"
     ]
   }
 }
