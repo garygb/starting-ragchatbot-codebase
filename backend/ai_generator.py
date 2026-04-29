@@ -1,5 +1,5 @@
 import anthropic
-from typing import List, Optional, Dict, Any, Tuple
+
 
 class AIGenerator:
     """Handles interactions with Anthropic's Claude API for generating responses"""
@@ -52,25 +52,24 @@ Response Guidelines:
 - Provide direct, concise answers
 - No meta-commentary about which tool was used
 """
-    
+
     def __init__(self, api_key: str, model: str, base_url: str = ""):
         client_kwargs = {"api_key": api_key}
         if base_url:
             client_kwargs["base_url"] = base_url
         self.client = anthropic.Anthropic(**client_kwargs)
         self.model = model
-        
+
         # Pre-build base API parameters
-        self.base_params = {
-            "model": self.model,
-            "temperature": 0,
-            "max_tokens": 800
-        }
-    
-    def generate_response(self, query: str,
-                         conversation_history: Optional[str] = None,
-                         tools: Optional[List] = None,
-                         tool_manager=None) -> str:
+        self.base_params = {"model": self.model, "temperature": 0, "max_tokens": 800}
+
+    def generate_response(
+        self,
+        query: str,
+        conversation_history: str | None = None,
+        tools: list | None = None,
+        tool_manager=None,
+    ) -> str:
         """
         Generate AI response with sequential tool calling support.
 
@@ -111,11 +110,9 @@ Response Guidelines:
         # No tools - direct API call
         return self._make_direct_call(messages, system_content)
 
-    def _execute_tool_loop(self,
-                          messages: List[Dict],
-                          tools: List[Dict],
-                          tool_manager,
-                          system_content: str) -> Tuple[List[Dict], str, Optional[str]]:
+    def _execute_tool_loop(
+        self, messages: list[dict], tools: list[dict], tool_manager, system_content: str
+    ) -> tuple[list[dict], str, str | None]:
         """
         Execute the tool calling loop for up to MAX_TOOL_ROUNDS.
 
@@ -130,14 +127,14 @@ Response Guidelines:
             exit_reason is one of: "complete", "max_rounds"
             direct_text is set if Claude returns text without tool use
         """
-        for round_num in range(self.MAX_TOOL_ROUNDS):
+        for _round_num in range(self.MAX_TOOL_ROUNDS):
             # Make API call with tools available
             response = self.client.messages.create(
                 **self.base_params,
                 messages=messages,
                 system=system_content,
                 tools=tools,
-                tool_choice={"type": "auto"}
+                tool_choice={"type": "auto"},
             )
 
             # Termination: Claude finished without tool use
@@ -155,7 +152,7 @@ Response Guidelines:
         # Max rounds reached
         return messages, "max_rounds", None
 
-    def _execute_tools(self, response, tool_manager) -> List[Dict]:
+    def _execute_tools(self, response, tool_manager) -> list[dict]:
         """
         Execute all tool_use blocks in the response.
 
@@ -172,23 +169,27 @@ Response Guidelines:
             if block.type == "tool_use":
                 try:
                     result = tool_manager.execute_tool(block.name, **block.input)
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": result
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": result,
+                        }
+                    )
                 except Exception as e:
                     # Graceful error handling - include error in result
-                    tool_results.append({
-                        "type": "tool_result",
-                        "tool_use_id": block.id,
-                        "content": f"Error: {str(e)}",
-                        "is_error": True
-                    })
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": f"Error: {str(e)}",
+                            "is_error": True,
+                        }
+                    )
 
         return tool_results
 
-    def _make_final_call(self, messages: List[Dict], system_content: str) -> str:
+    def _make_final_call(self, messages: list[dict], system_content: str) -> str:
         """
         Make final API call without tools to get text response.
 
@@ -200,17 +201,20 @@ Response Guidelines:
             Final text response
         """
         # Add explicit instruction for final synthesis
-        final_instruction = {"role": "user", "content": "Based on the search results above, provide a direct answer to my original question. Do not make any more tool calls - just summarize the findings clearly."}
+        final_instruction = {
+            "role": "user",
+            "content": "Based on the search results above, provide a direct answer to my original question. Do not make any more tool calls - just summarize the findings clearly.",
+        }
         messages_with_instruction = messages + [final_instruction]
 
         response = self.client.messages.create(
             **self.base_params,
             messages=messages_with_instruction,
-            system=system_content
+            system=system_content,
         )
         return self._extract_text(response)
 
-    def _make_direct_call(self, messages: List[Dict], system_content: str) -> str:
+    def _make_direct_call(self, messages: list[dict], system_content: str) -> str:
         """
         Make direct API call without tools.
 
@@ -222,9 +226,7 @@ Response Guidelines:
             Text response
         """
         response = self.client.messages.create(
-            **self.base_params,
-            messages=messages,
-            system=system_content
+            **self.base_params, messages=messages, system=system_content
         )
         return self._extract_text(response)
 
@@ -242,9 +244,9 @@ Response Guidelines:
             Extracted text string
         """
         for block in response.content:
-            if hasattr(block, 'text') and block.type == "text":
+            if hasattr(block, "text") and block.type == "text":
                 return block.text
         # Fallback: return first block's text if it exists
-        if response.content and hasattr(response.content[0], 'text'):
+        if response.content and hasattr(response.content[0], "text"):
             return response.content[0].text
         return ""

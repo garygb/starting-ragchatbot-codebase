@@ -71,6 +71,43 @@ Lesson 1: <title>
 
 On startup, `app.py` loads all `.txt`/`.pdf`/`.docx` files from `../docs` into ChromaDB (skipping already-indexed courses by title). ChromaDB data persists in `backend/chroma_db/`.
 
+## Code Quality
+
+Tools configured in `pyproject.toml` (run via `uv run`):
+
+| Tool | Purpose | Command |
+|---|---|---|
+| **black** | Code formatting | `uv run black backend/ main.py` |
+| **isort** | Import sorting | `uv run isort backend/ main.py --profile black` |
+| **ruff** | Linting | `uv run ruff check backend/ main.py` |
+
+### Dev Scripts
+
+```bash
+./scripts/format.sh   # Auto-format all files (isort + black)
+./scripts/lint.sh     # Check quality without modifying files
+./scripts/quality.sh  # Full pipeline: lint + format check + tests
+```
+
+### Manual Commands
+
+```bash
+# Format code
+uv run isort backend/ main.py --profile black
+uv run black backend/ main.py
+
+# Check formatting (no changes)
+uv run isort backend/ main.py --profile black --check --diff
+uv run black backend/ main.py --check --diff
+
+# Lint
+uv run ruff check backend/ main.py          # Check
+uv run ruff check backend/ main.py --fix    # Auto-fix
+
+# Run tests
+cd backend && uv run pytest tests/ -v
+```
+
 ## Configuration
 
 All config via `backend/config.py` dataclass, values from `.env` via `python-dotenv`. Key tunables: `CHUNK_SIZE` (800), `CHUNK_OVERLAP` (100), `MAX_RESULTS` (5), `MAX_HISTORY` (2), `EMBEDDING_MODEL` (all-MiniLM-L6-v2).
