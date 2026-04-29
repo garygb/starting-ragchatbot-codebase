@@ -7,12 +7,42 @@ Run tests with: uv run pytest backend/tests/ -v
 import pytest
 import sys
 import os
+from unittest.mock import Mock, MagicMock, patch
+from fastapi import FastAPI, HTTPException
+from fastapi.testclient import TestClient
+from pydantic import BaseModel
+from typing import List, Optional
 
 # Add backend directory to path for imports
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
+
+# ==================== Pydantic models (mirrors app.py) ====================
+
+class QueryRequest(BaseModel):
+    query: str
+    session_id: Optional[str] = None
+
+class SourceItem(BaseModel):
+    title: str
+    url: Optional[str] = None
+
+class QueryResponse(BaseModel):
+    answer: str
+    sources: List[SourceItem]
+    session_id: str
+
+class CourseStats(BaseModel):
+    total_courses: int
+    course_titles: List[str]
+
+class ClearSessionRequest(BaseModel):
+    session_id: str
+
+
+# ==================== Unit test fixtures ====================
 
 @pytest.fixture
 def sample_course_metadata():
@@ -67,3 +97,85 @@ def sample_tool_definition():
             "required": ["query"]
         }
     }
+
+
+# ==================== API test fixtures ====================
+
+@pytest.fixture
+def mock_rag_system():
+    """Create a fully mocked RAGSystem for API tests"""
+    rag = Mock()
+
+    # Mock query method
+    rag.query.return_value = (
+        "Python is a versatile programming language.",
+        [{"title": "Python 101 - Lesson 1", "url": "https://example.com/lesson/1"}]
+    )
+
+    # Mock get_course_analytics method
+    rag.get_course_analytics.return_value = {
+        "total_courses": 2,
+        "course_titles": ["Python 101", "MCP Course"]
+    }
+
+    # Mock session_manager
+    rag.session_manager = Mock()
+    rag.session_manager.create_session.return_value = "test-session-123"
+    rag.session_manager.clear_session = Mock()
+
+    return rag
+
+
+@pytest.fixture
+def test_app(mock_rag_system):
+    """Create a test FastAPI app with the same routes as the real app,
+    but without static file mounting that would fail in test environment."""
+    app = FastAPI(title="Test Course Materials RAG System")
+
+    @app.post("/api/query", response_model=QueryResponse)
+    async def query_documents(request: QueryRequest):
+        try:
+            session_id = request.session_id
+            if not session_id:
+                session_id = mock_rag_system.session_manager.create_session()
+            answer, sources = mock_rag_system.query(request.query, session_id)
+            return QueryResponse(
+                answer=answer,
+                sources=sources,
+                session_id=session_id
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.post("/api/session/clear")
+    async def clear_session(request: ClearSessionRequest):
+        mock_rag_system.session_manager.clear_session(request.session_id)
+        return {"status": "ok"}
+
+    @app.get("/api/courses", response_model=CourseStats)
+    async def get_course_stats():
+        try:
+            analytics = mock_rag_system.get_course_analytics()
+            return CourseStats(
+                total_courses=analytics["total_courses"],
+                course_titles=analytics["course_titles"]
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    return app
+
+
+@pytest.fixture
+def client(test_app):
+    """FastAPI test client"""
+    return TestClient(test_app)
+
+
+@pytest.fixture
+def sample_sources():
+    """Sample source references for testing"""
+    return [
+        {"title": "Python 101 - Lesson 1", "url": "https://example.com/lesson/1"},
+        {"title": "Python 101 - Lesson 2", "url": "https://example.com/lesson/2"}
+    ]
