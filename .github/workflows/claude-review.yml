@@ -30,4 +30,5 @@ jobs:
           prompt: "Review this pull request for code quality, correctness, and security. Analyze the diff, then post your findings as review comments."
           claude_args: |
             --model ${{ secrets.ANTHROPIC_MODEL }}
-            --max-turns 5
+            --max-turns 15
+            --allowedTools Bash(git diff*),Bash(git log*),Bash(gh pr view*),Bash(gh pr diff*),Bash(gh api*),Read,Grep,Glob
