@@ -24,4 +24,26 @@ addopts = "-v --tb=short"
 dev = [
     "pytest>=9.0.3",
     "httpx>=0.28.0",
+    "black>=25.1.0",
+    "isort>=6.0.1",
+    "ruff>=0.11.0",
 ]
+
+[tool.black]
+line-length = 88
+target-version = ["py313"]
+
+[tool.isort]
+profile = "black"
+known_first_party = ["config", "models", "vector_store", "search_tools", "ai_generator", "rag_system", "session_manager", "document_processor"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["config", "models", "vector_store", "search_tools", "ai_generator", "rag_system", "session_manager", "document_processor"]
