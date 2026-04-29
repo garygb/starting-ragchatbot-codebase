@@ -140,3 +140,4 @@ class DevStaticFiles(StaticFiles):
 
 # Serve static files for the frontend
 app.mount("/", StaticFiles(directory="../frontend", html=True), name="static")
+// Test comment for Claude Code Review
